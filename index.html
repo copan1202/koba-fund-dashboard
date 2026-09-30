@@ -308,23 +308,182 @@
       .metric { padding: 9px; }
       .status { margin-top: 12px; }
     }
+
+    .app-hidden { display: none !important; }
+
+    .auth-gate {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: var(--bg);
+    }
+
+    .auth-card {
+      width: min(420px, 100%);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .auth-card h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    .auth-card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .auth-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .auth-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .auth-field input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .auth-button,
+    .logout-button {
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .auth-button {
+      width: 100%;
+      padding: 11px 14px;
+      background: #111827;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .auth-button:disabled { opacity: .6; cursor: wait; }
+
+    .auth-message {
+      min-height: 20px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .auth-message.error { color: #b91c1c; }
+    .auth-message.ok { color: #15803d; }
+
+    .session-box {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .session-user {
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .logout-button {
+      padding: 6px 9px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #475569;
+    }
+
+    @media (max-width: 760px) {
+      .session-box {
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .session-user { max-width: 62vw; }
+    }
+
   </style>
 </head>
 <body>
-  <main class="app" id="dropArea">
+
+  <section id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <h2>コバファンド</h2>
+      <p>夫婦共有ダッシュボードにログインしてください。</p>
+
+      <form id="loginForm">
+        <div class="auth-field">
+          <label for="loginEmail">メールアドレス</label>
+          <input id="loginEmail" type="email" autocomplete="username" required />
+        </div>
+
+        <div class="auth-field">
+          <label for="loginPassword">パスワード</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </div>
+
+        <button id="loginButton" class="auth-button" type="submit">ログイン</button>
+        <div id="authMessage" class="auth-message"></div>
+      </form>
+    </div>
+  </section>
+
+  <main class="app app-hidden" id="dropArea">
     <div class="topbar">
       <div class="brand">
         <h1>コバファンド</h1>
         <p>配当ダッシュボード Web版</p>
       </div>
 
-      <div class="controls">
-        <label class="file-label" for="portfolioInput">SBI CSV更新</label>
+      <div>
+        <div class="session-box">
+          <span id="sessionUser" class="session-user"></span>
+          <span id="roleBadge" class="role-badge"></span>
+          <button id="logoutButton" class="logout-button" type="button">ログアウト</button>
+        </div>
+
+        <div id="editorControls" class="controls">
+          <label class="file-label" for="portfolioInput">SBI CSV更新</label>
         <input id="portfolioInput" type="file" accept=".csv,text/csv" />
 
         <label class="file-label secondary" for="dividendInput">配当マスタ更新（変更時のみ）</label>
-        <input id="dividendInput" type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+          <input id="dividendInput" type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        </div>
       </div>
     </div>
 
@@ -413,7 +572,25 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    const SUPABASE_URL = 'https://kwoymibuevyvowfzulvz.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_kZt0-9bjgsjE5wSoiPP22g_H1quZ2g6';
+    const KOBA_USER_ID = '4e7ef675-c563-4ca6-8c40-857b416c0843';
+    const DASHBOARD_ROW_ID = 1;
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY,
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      }
+    );
+
     const DEFAULT_DIVIDEND_MASTER = {};
     const MASTER_STORAGE_KEY = 'kobaDividendMaster_web_v1';
     const MASTER_META_STORAGE_KEY = 'kobaDividendMasterMeta_web_v1';
@@ -437,6 +614,26 @@
     const portfolioFileName = document.getElementById('portfolioFileName');
     const dividendMasterInfo = document.getElementById('dividendMasterInfo');
 
+    const authGate = document.getElementById('authGate');
+    const loginForm = document.getElementById('loginForm');
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+    const loginButton = document.getElementById('loginButton');
+    const authMessage = document.getElementById('authMessage');
+    const sessionUser = document.getElementById('sessionUser');
+    const roleBadge = document.getElementById('roleBadge');
+    const logoutButton = document.getElementById('logoutButton');
+    const editorControls = document.getElementById('editorControls');
+
+    let currentSession = null;
+    let currentUser = null;
+    let isEditor = false;
+    let currentSummary = null;
+    let currentAnnualDividend = null;
+    let currentDividendYieldOnCost = null;
+    let currentDividendYieldOnValue = null;
+
+
     let dividendMaster = { ...DEFAULT_DIVIDEND_MASTER };
     let dividendMasterMeta = {
       source: '未登録',
@@ -450,10 +647,16 @@
 
     restoreDividendMaster();
     refreshMasterInfo();
+    initializeAuth();
 
     portfolioInput.addEventListener('change', async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      if (!isEditor) {
+        setStatus('このアカウントは閲覧専用です。', 'error');
+        portfolioInput.value = '';
+        return;
+      }
       try {
         await loadPortfolio(file);
       } catch (error) {
@@ -467,10 +670,18 @@
     dividendInput.addEventListener('change', async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      if (!isEditor) {
+        setStatus('このアカウントは閲覧専用です。', 'error');
+        dividendInput.value = '';
+        return;
+      }
 
       try {
         await updateDividendMasterFromExcel(file);
         recalculateDividend();
+        if (currentHoldings.length) {
+          await saveDashboardToCloud();
+        }
         setStatus(`配当マスタを更新しました：${file.name}`, 'ok');
       } catch (error) {
         console.error(error);
@@ -495,6 +706,11 @@
     });
 
     dropArea.addEventListener('drop', async e => {
+      if (!isEditor) {
+        setStatus('このアカウントは閲覧専用です。', 'error');
+        return;
+      }
+
       const files = [...(e.dataTransfer?.files || [])];
       if (!files.length) return;
 
@@ -555,11 +771,16 @@
 
       lastUpdated.textContent = formatDateTime(new Date());
 
+      currentSummary = summary;
       recalculateDividend();
 
+      const cloudSaved = await saveDashboardToCloud();
+
       setStatus(
-        `SBI CSV更新完了：${holdings.length}銘柄 / 評価額 ${summary.asset.toLocaleString('ja-JP', {maximumFractionDigits: 2})}円`,
-        'ok'
+        cloudSaved
+          ? `SBI CSV更新＋共有データ更新完了：${holdings.length}銘柄 / 評価額 ${summary.asset.toLocaleString('ja-JP', {maximumFractionDigits: 2})}円`
+          : `SBI CSV更新完了：${holdings.length}銘柄 / 評価額 ${summary.asset.toLocaleString('ja-JP', {maximumFractionDigits: 2})}円（共有データは未更新）`,
+        cloudSaved ? 'ok' : ''
       );
     }
 
@@ -586,6 +807,9 @@
 
     function recalculateDividend() {
       if (!Object.keys(dividendMaster).length) {
+        currentAnnualDividend = null;
+        currentDividendYieldOnCost = null;
+        currentDividendYieldOnValue = null;
         annualDividend.textContent = '---';
         dividendYieldOnCost.textContent = '---';
         dividendYieldOnValue.textContent = '---';
@@ -595,6 +819,9 @@
       }
 
       if (!currentHoldings.length) {
+        currentAnnualDividend = null;
+        currentDividendYieldOnCost = null;
+        currentDividendYieldOnValue = null;
         annualDividend.textContent = '---';
         dividendYieldOnCost.textContent = '---';
         dividendYieldOnValue.textContent = '---';
@@ -619,6 +846,9 @@
       }
 
       if (missing.length) {
+        currentAnnualDividend = null;
+        currentDividendYieldOnCost = null;
+        currentDividendYieldOnValue = null;
         annualDividend.textContent = '---';
         dividendYieldOnCost.textContent = '---';
         dividendYieldOnValue.textContent = '---';
@@ -628,19 +858,29 @@
         return;
       }
 
+      currentAnnualDividend = total;
+      currentDividendYieldOnCost =
+        Number.isFinite(currentTotalCost) && currentTotalCost > 0
+          ? (total / currentTotalCost * 100)
+          : null;
+      currentDividendYieldOnValue =
+        Number.isFinite(currentAssetValue) && currentAssetValue > 0
+          ? (total / currentAssetValue * 100)
+          : null;
+
       annualDividend.textContent = total.toLocaleString('ja-JP', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
       });
 
       dividendYieldOnCost.textContent =
-        Number.isFinite(currentTotalCost) && currentTotalCost > 0
-          ? `${(total / currentTotalCost * 100).toFixed(2)}%`
+        Number.isFinite(currentDividendYieldOnCost)
+          ? `${currentDividendYieldOnCost.toFixed(2)}%`
           : '---';
 
       dividendYieldOnValue.textContent =
-        Number.isFinite(currentAssetValue) && currentAssetValue > 0
-          ? `${(total / currentAssetValue * 100).toFixed(2)}%`
+        Number.isFinite(currentDividendYieldOnValue)
+          ? `${currentDividendYieldOnValue.toFixed(2)}%`
           : '---';
 
       dividendStatus.textContent =
@@ -739,6 +979,238 @@
       dividendMasterInfo.title = dividendMasterMeta.updatedAt
         ? `${source} / 更新 ${formatDateTime(new Date(dividendMasterMeta.updatedAt))}`
         : `${source} / ${count}銘柄`;
+    }
+
+
+    async function initializeAuth() {
+      loginForm.addEventListener('submit', handleLogin);
+      logoutButton.addEventListener('click', handleLogout);
+
+      const { data, error } = await supabaseClient.auth.getSession();
+
+      if (error) {
+        console.error(error);
+        showLoggedOut('ログイン状態を確認できませんでした。');
+        return;
+      }
+
+      await handleSession(data.session);
+
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        setTimeout(() => handleSession(session), 0);
+      });
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+      if (!email || !password) return;
+
+      loginButton.disabled = true;
+      setAuthMessage('ログインしています…');
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      loginButton.disabled = false;
+
+      if (error) {
+        console.error(error);
+        setAuthMessage('メールアドレスまたはパスワードを確認してください。', 'error');
+        return;
+      }
+
+      loginPassword.value = '';
+      setAuthMessage('ログインしました。', 'ok');
+    }
+
+    async function handleLogout() {
+      await supabaseClient.auth.signOut();
+    }
+
+    async function handleSession(session) {
+      currentSession = session;
+      currentUser = session?.user ?? null;
+      isEditor = currentUser?.id === KOBA_USER_ID;
+
+      if (!currentUser) {
+        showLoggedOut();
+        return;
+      }
+
+      authGate.classList.add('app-hidden');
+      dropArea.classList.remove('app-hidden');
+
+      sessionUser.textContent = currentUser.email || currentUser.id;
+      roleBadge.textContent = isEditor ? '更新担当' : '閲覧専用';
+      editorControls.style.display = isEditor ? '' : 'none';
+
+      await loadDashboardFromCloud();
+    }
+
+    function showLoggedOut(message = '') {
+      currentSession = null;
+      currentUser = null;
+      isEditor = false;
+
+      authGate.classList.remove('app-hidden');
+      dropArea.classList.add('app-hidden');
+      editorControls.style.display = 'none';
+
+      if (message) setAuthMessage(message, 'error');
+      else setAuthMessage('');
+    }
+
+    function setAuthMessage(message, type = '') {
+      authMessage.textContent = message;
+      authMessage.className = `auth-message ${type}`.trim();
+    }
+
+    async function loadDashboardFromCloud() {
+      setStatus('共有データを読み込んでいます…');
+
+      const { data: row, error } = await supabaseClient
+        .from('dashboard_current')
+        .select('id,data,updated_at')
+        .eq('id', DASHBOARD_ROW_ID)
+        .single();
+
+      if (error) {
+        console.error(error);
+        setStatus('共有データを読み込めませんでした。ログイン権限または通信状態を確認してください。', 'error');
+        return;
+      }
+
+      const data = row?.data;
+
+      if (!data || typeof data !== 'object' || !Number.isFinite(Number(data.assetValue))) {
+        setStatus(
+          isEditor
+            ? '共有データはまだテスト状態です。配当マスタを登録後、SBI CSVを読み込んで最初の共有更新を行ってください。'
+            : '共有ダッシュボードはまだ準備中です。',
+          ''
+        );
+        return;
+      }
+
+      applyCloudDashboard(data, row.updated_at);
+      setStatus(
+        isEditor
+          ? '共有データを読み込みました。SBI CSV更新で最新値を共有できます。'
+          : '最新の共有データを表示しています。',
+        'ok'
+      );
+    }
+
+    function applyCloudDashboard(data, rowUpdatedAt) {
+      const asset = toFiniteNumber(data.assetValue);
+      const totalCost = toFiniteNumber(data.totalCost);
+      const profit = toFiniteNumber(data.profitLoss);
+      const profitRate = toFiniteNumber(data.profitLossRate);
+      const day = toFiniteNumber(data.dayChange);
+      const dividend = toFiniteNumber(data.annualDividend);
+      const yoc = toFiniteNumber(data.dividendYieldOnCost);
+      const yov = toFiniteNumber(data.dividendYieldOnValue);
+
+      currentAssetValue = asset;
+      currentTotalCost = totalCost;
+      currentAnnualDividend = dividend;
+      currentDividendYieldOnCost = yoc;
+      currentDividendYieldOnValue = yov;
+
+      assetValue.textContent =
+        Number.isFinite(asset) ? Math.round(asset).toLocaleString('ja-JP') : '---';
+
+      costValue.textContent =
+        Number.isFinite(totalCost) ? Math.round(totalCost).toLocaleString('ja-JP') : '---';
+
+      setMetric(costDifference, profit, '円');
+      setMetric(profitLoss, profit, '円');
+      setMetric(profitLossRate, profitRate, '%', 2);
+      setMetric(dayChange, day, '円');
+
+      annualDividend.textContent =
+        Number.isFinite(dividend)
+          ? dividend.toLocaleString('ja-JP', {minimumFractionDigits: 0, maximumFractionDigits: 2})
+          : '---';
+
+      dividendYieldOnCost.textContent =
+        Number.isFinite(yoc) ? `${yoc.toFixed(2)}%` : '---';
+
+      dividendYieldOnValue.textContent =
+        Number.isFinite(yov) ? `${yov.toFixed(2)}%` : '---';
+
+      const portfolioName = data.portfolioFileName || '共有データ';
+      portfolioFileName.textContent = portfolioName;
+      portfolioFileName.title = portfolioName;
+      sourceName.textContent = portfolioName;
+
+      const updated = data.lastUpdated || rowUpdatedAt;
+      lastUpdated.textContent = updated ? formatDateTime(new Date(updated)) : '---';
+
+      const masterSource = data.dividendMasterSource || '共有済み配当マスタ';
+      const masterCount = Number(data.dividendMasterCount || 0);
+      dividendMasterInfo.textContent =
+        masterCount > 0 ? `${masterSource} / ${masterCount}銘柄` : masterSource;
+
+      const holdingsCount = Number(data.holdingsCount || 0);
+      dividendStatus.textContent =
+        holdingsCount > 0 ? `共有データ / ${holdingsCount}銘柄` : '共有データ';
+      dividendStatus.className = 'source';
+    }
+
+    async function saveDashboardToCloud() {
+      if (!isEditor || !currentUser) return false;
+
+      if (
+        !currentSummary ||
+        !Number.isFinite(currentAssetValue) ||
+        !Number.isFinite(currentTotalCost) ||
+        !Number.isFinite(currentAnnualDividend)
+      ) {
+        return false;
+      }
+
+      const payload = {
+        version: 1,
+        assetValue: currentAssetValue,
+        totalCost: currentTotalCost,
+        profitLoss: currentSummary.profitLoss,
+        profitLossRate: currentSummary.profitLossRate,
+        dayChange: currentSummary.dayChange,
+        annualDividend: currentAnnualDividend,
+        dividendYieldOnCost: currentDividendYieldOnCost,
+        dividendYieldOnValue: currentDividendYieldOnValue,
+        lastUpdated: new Date().toISOString(),
+        portfolioFileName: portfolioFileName.textContent || '',
+        dividendMasterSource: dividendMasterMeta.source || '配当マスタ',
+        dividendMasterCount: Object.keys(dividendMaster).length,
+        holdingsCount: currentHoldings.length
+      };
+
+      const now = new Date().toISOString();
+
+      const { data: updatedRow, error } = await supabaseClient
+        .from('dashboard_current')
+        .update({ data: payload, updated_at: now })
+        .eq('id', DASHBOARD_ROW_ID)
+        .select('id,updated_at')
+        .single();
+
+      if (error || !updatedRow) {
+        console.error(error || new Error('更新対象行がありません。'));
+        setStatus('ローカル計算は完了しましたが、共有データの更新に失敗しました。', 'error');
+        return false;
+      }
+
+      return true;
+    }
+
+    function toFiniteNumber(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
     }
 
     function decodeCsv(buffer) {

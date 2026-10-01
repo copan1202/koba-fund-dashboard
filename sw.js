@@ -1,11 +1,11 @@
-const CACHE_NAME = 'koba-fund-pwa-v1';
+const CACHE_NAME = 'koba-fund-pwa-v2';
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon-180.png',
-  './icon-192.png',
-  './icon-512.png'
+  './icon-180.png?v=2',
+  './icon-192.png?v=2',
+  './icon-512.png?v=2'
 ];
 
 self.addEventListener('install', event => {

@@ -437,6 +437,13 @@
     }
 
   </style>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="コバファンド" />
+
 </head>
 <body>
 
@@ -1509,5 +1516,16 @@
       status.className = `status ${type}`.trim();
     }
   </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(error => {
+          console.warn('Service Worker registration failed:', error);
+        });
+      });
+    }
+  </script>
+
 </body>
 </html>
